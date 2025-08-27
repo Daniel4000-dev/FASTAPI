@@ -10,16 +10,19 @@ import time
 from sqlalchemy.orm import Session
 from . import models, schemas
 from .database import engine, get_db
+from dotenv import load_dotenv
 
 models.Base.metadata.create_all(bind=engine)
+# Load variables from .env file
+load_dotenv()
 
 app = FastAPI()
 
 # Connect to existing database
-DB_HOST = os.getenv("DB_HOST", "localhost")
-DB_NAME = os.getenv("DB_NAME", "fastapi")
-DB_USER = os.getenv("DB_USER", "postgres")
-DB_PASSWORD = os.getenv("DB_PASSWORD", "boolean")
+DB_HOST = os.getenv("DB_HOST")
+DB_NAME = os.getenv("DB_NAME")
+DB_USER = os.getenv("DB_USER")
+DB_PASSWORD = os.getenv("DB_PASS")
 
 max_retries = 5
 retry_delay = 2  # start with 2 seconds
@@ -64,11 +67,6 @@ def find_index_post(id):
 def root():
     return {"message": "Welcome to my api"}
 
-@app.get("/po")
-def test_post(db: Session = Depends(get_db)):
-    posts = db.query(models.Post).all()
-    return {"data": posts}
-
 @app.get("/posts")
 def get_posts(db: Session = Depends(get_db)):
     # Executea query
@@ -76,10 +74,10 @@ def get_posts(db: Session = Depends(get_db)):
     # Retrieve query results
     # posts = cursor.fetchall()
     posts = db.query(models.Post).all()
-    return {"data": posts}
+    return posts
 
 @app.post("/posts", status_code=status.HTTP_201_CREATED)
-def create_posts(post: schemas.Post, db: Session = Depends(get_db)):
+def create_posts(post: schemas.PostCreate, db: Session = Depends(get_db)):
     # cursor.execute("""INSERT INTO posts (title, content, published) VALUES (%s, %s, %s)
     #                RETURNING * """,
     #                (post.title, post.content, post.published))
@@ -90,7 +88,7 @@ def create_posts(post: schemas.Post, db: Session = Depends(get_db)):
     db.add(new_post)
     db.commit()
     db.refresh(new_post)
-    return {"data": new_post}
+    return new_post
 
 @app.get("/posts/{id}")
 def get_post(id: int, db: Session = Depends(get_db)):
@@ -123,7 +121,7 @@ def delete_post(id: int, db: Session = Depends(get_db)):
 
 
 @app.put("/posts/{id}")
-def update_post(id: int, post: schemas.Post, db: Session = Depends(get_db)):
+def update_post(id: int, post: schemas.PostCreate, db: Session = Depends(get_db)):
     # cursor.execute("""UPDATE posts SET title = %s, content = %s, published = %s WHERE id = %s RETURNING * """, 
     #                (post.title, post.content, post.published, str(id)))
     # updated_post = cursor.fetchone()
