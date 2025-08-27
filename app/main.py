@@ -2,7 +2,7 @@ from multiprocessing import synchronize
 import os
 from fastapi import FastAPI, Response, status, Body, HTTPException, Depends
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, List
 from random import randrange
 import psycopg2
 from psycopg2.extras import RealDictCursor
@@ -11,7 +11,9 @@ from sqlalchemy.orm import Session
 from . import models, schemas
 from .database import engine, get_db
 from dotenv import load_dotenv
+from passlib.context import CryptContext
 
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 models.Base.metadata.create_all(bind=engine)
 # Load variables from .env file
 load_dotenv()
@@ -63,11 +65,11 @@ def find_index_post(id):
         if p['id'] == id:
             return i
     
-@app.get("/")
+@app.get("/", response_model=schemas.PostResponse)
 def root():
     return {"message": "Welcome to my api"}
 
-@app.get("/posts")
+@app.get("/posts", response_model=List[schemas.PostResponse])
 def get_posts(db: Session = Depends(get_db)):
     # Executea query
     cursor.execute("SELECT * FROM posts;")
@@ -76,7 +78,7 @@ def get_posts(db: Session = Depends(get_db)):
     posts = db.query(models.Post).all()
     return posts
 
-@app.post("/posts", status_code=status.HTTP_201_CREATED)
+@app.post("/posts", status_code=status.HTTP_201_CREATED, response_model=schemas.PostResponse)
 def create_posts(post: schemas.PostCreate, db: Session = Depends(get_db)):
     # cursor.execute("""INSERT INTO posts (title, content, published) VALUES (%s, %s, %s)
     #                RETURNING * """,
@@ -90,7 +92,7 @@ def create_posts(post: schemas.PostCreate, db: Session = Depends(get_db)):
     db.refresh(new_post)
     return new_post
 
-@app.get("/posts/{id}")
+@app.get("/posts/{id}", response_model=schemas.PostResponse)
 def get_post(id: int, db: Session = Depends(get_db)):
     # cursor.execute("""Select * FROM posts WHERE id = %s """, (str(id),))
     # post = cursor.fetchone()
@@ -100,7 +102,7 @@ def get_post(id: int, db: Session = Depends(get_db)):
                             detail=f"post with id: {id} was not found")
         # response.status_code = status.HTTP_404_NOT_FOUND
         # return {'message': f"post with id: {id} was not found"}
-    return {"data": post}
+    return post
 
 @app.delete("/posts/{id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_post(id: int, db: Session = Depends(get_db)):
@@ -120,7 +122,7 @@ def delete_post(id: int, db: Session = Depends(get_db)):
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
-@app.put("/posts/{id}")
+@app.put("/posts/{id}", response_model=schemas.PostResponse)
 def update_post(id: int, post: schemas.PostCreate, db: Session = Depends(get_db)):
     # cursor.execute("""UPDATE posts SET title = %s, content = %s, published = %s WHERE id = %s RETURNING * """, 
     #                (post.title, post.content, post.published, str(id)))
@@ -144,4 +146,19 @@ def update_post(id: int, post: schemas.PostCreate, db: Session = Depends(get_db)
     # Refresh the instance to get the latest data from the database
     db.refresh(updated_post)
     # Return the updated post
-    return {"data": updated_post}
+    return updated_post
+
+
+@app.post("/users", status_code=status.HTTP_201_CREATED, response_model=schemas.UserOut)
+def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
+    
+    # Hash the password - user.password
+    hashed_password = pwd_context.hash(user.password)
+    user.password = hashed_password
+    
+    new_user = models.User(**user.dict())
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+    
+    return new_user
