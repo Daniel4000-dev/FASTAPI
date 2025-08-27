@@ -121,20 +121,36 @@ def delete_post(id: int, db: Session = Depends(get_db)):
     if post is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
                             detail=f"post with id: {id} was not found")
-        
-    post.delete(synchronize_session=False)
+    
+    # Delete the post from the database
+    db.delete(post)
     db.commit()
     
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @app.put("/posts/{id}")
-def update_post(id: int, post: Post):
-    cursor.execute("""UPDATE posts SET title = %s, content = %s, published = %s WHERE id = %s RETURNING * """, 
-                   (post.title, post.content, post.published, str(id)))
-    updated_post = cursor.fetchone()
-    conn.commit()
+def update_post(id: int, post: Post, db: Session = Depends(get_db)):
+    # cursor.execute("""UPDATE posts SET title = %s, content = %s, published = %s WHERE id = %s RETURNING * """, 
+    #                (post.title, post.content, post.published, str(id)))
+    # updated_post = cursor.fetchone()
+    # conn.commit()
+    
+    post_query = db.query(models.Post).filter(models.Post.id == id)
+    updated_post = post_query.first()
+    
     if updated_post is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
                             detail=f"post with id: {id} was not found")
+        
+    # Update the post's fields manually
+    post_query.update({"title": "home coming", "content": "my content"}, synchronize_session=False)
+    
+    # Commit the changes to the database
+    db.commit()
+    
+    
+    # Refresh the instance to get the latest data from the database
+    db.refresh(updated_post)
+    # Return the updated post
     return {"data": updated_post}
