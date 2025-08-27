@@ -144,7 +144,8 @@ def update_post(id: int, post: Post, db: Session = Depends(get_db)):
                             detail=f"post with id: {id} was not found")
         
     # Update the post's fields manually
-    post_query.update({"title": "home coming", "content": "my content"}, synchronize_session=False)
+    update_data = {getattr(models.Post, key): value for key, value in post.dict().items()}
+    post_query.update(update_data, synchronize_session=False)
     
     # Commit the changes to the database
     db.commit()
