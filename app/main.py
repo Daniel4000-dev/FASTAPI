@@ -8,12 +8,10 @@ import psycopg2
 from psycopg2.extras import RealDictCursor
 import time
 from sqlalchemy.orm import Session
-from . import models, schemas
+from . import models, schemas, utils
 from .database import engine, get_db
 from dotenv import load_dotenv
-from passlib.context import CryptContext
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 models.Base.metadata.create_all(bind=engine)
 # Load variables from .env file
 load_dotenv()
@@ -151,9 +149,8 @@ def update_post(id: int, post: schemas.PostCreate, db: Session = Depends(get_db)
 
 @app.post("/users", status_code=status.HTTP_201_CREATED, response_model=schemas.UserOut)
 def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
-    
     # Hash the password - user.password
-    hashed_password = pwd_context.hash(user.password)
+    hashed_password = utils.hash(user.password)
     user.password = hashed_password
     
     new_user = models.User(**user.dict())
@@ -162,3 +159,11 @@ def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
     db.refresh(new_user)
     
     return new_user
+
+@app.get('/users/{id}', response_model=schemas.UserOut)
+def get_user(id: int, db: Session = Depends(get_db)):
+    user = db.query(models.User).filter(models.User.id == id).first()
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+                            detail=f"user with id: {id} was not found")
+    return user
