@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 from . import models, schemas, utils
 from .database import engine, get_db
 from dotenv import load_dotenv
+from .routes import post, users, auth
 
 models.Base.metadata.create_all(bind=engine)
 # Load variables from .env file
@@ -62,3 +63,12 @@ def find_index_post(id):
     for i, p in enumerate(my_posts):
         if p['id'] == id:
             return i
+
+
+app.include_router(post.router)
+app.include_router(users.router)
+app.include_router(auth.router)
+
+@app.get("/", response_model=schemas.PostResponse)
+def root():
+    return {"message": "Welcome to my api"}
