@@ -1,3 +1,4 @@
+import utils.session
 from multiprocessing import synchronize
 import os
 from fastapi import FastAPI, Response, status, Body, HTTPException, Depends
